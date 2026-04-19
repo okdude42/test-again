@@ -1001,8 +1001,7 @@ Connection = RunService.Render:Connect(function()
                 if isPressed and not ElementKeyDebounce[el.StateKey] and Focused ~= el.KeyStateKey and Focused ~= "Keybind" then
                     ElementKeyDebounce[el.StateKey] = true
                     if el.Type == "Toggle" then
-                        State[el.StateKey] = not State[el.StateKey]
-                        if el.Callback then el.Callback(State[el.StateKey]) end
+                        if el.Callback then el:Callback() end
                     elseif el.Type == "Button" then
                         if el.Callback then el.Callback() end
                     end
