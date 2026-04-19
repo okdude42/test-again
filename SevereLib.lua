@@ -783,6 +783,8 @@ Connection = RunService.Render:Connect(function()
         local lDown = (type(isleftpressed) == "function" and isleftpressed() and (type(isrbxactive) ~= "function" or isrbxactive())) or false 
         GlobalMousePos = mPos
 
+        local isTyping = (UIS:GetFocusedTextBox() ~= nil)
+
         State.LightAlpha = ExpLerp(State.LightAlpha or (State.LightMode and 1 or 0), State.LightMode and 1 or 0, dt, 4.5)
         local lA = State.LightAlpha
 
@@ -864,7 +866,7 @@ Connection = RunService.Render:Connect(function()
             end
         end
 
-        if bindPressed and not ToggleDebounce and Focused ~= "Keybind" and State.TargetPopup == "None" and not State.TargetDropdown then
+        if bindPressed and not isTyping and not ToggleDebounce and Focused ~= "Keybind" and State.TargetPopup == "None" and not State.TargetDropdown then
             State.Visible = not State.Visible; ToggleDebounce = true
             task.spawn(function() task.wait(0.2) ToggleDebounce = false end)
         end
@@ -962,8 +964,10 @@ Connection = RunService.Render:Connect(function()
             if el.HasKeybind and State[el.KeyStateKey] and State[el.KeyStateKey] ~= "None" then
                 local k = State[el.KeyStateKey]
                 local isPressed = false
-                pcall(function() if UIS:IsKeyDown(Enum.KeyCode[k]) then isPressed = true end end)
-                if not isPressed and activeKeys[k] then isPressed = true end
+                if not isTyping then
+                    pcall(function() if UIS:IsKeyDown(Enum.KeyCode[k]) then isPressed = true end end)
+                    if not isPressed and activeKeys[k] then isPressed = true end
+                end
 
                 if isPressed and not ElementKeyDebounce[el.StateKey] and Focused ~= el.KeyStateKey and Focused ~= "Keybind" then
                     ElementKeyDebounce[el.StateKey] = true
@@ -1235,7 +1239,7 @@ Connection = RunService.Render:Connect(function()
                     end
                     
                     local localPos = Vector2.new(baseCX, cY)
-                    el.UnscaledPos = finalPopPos + localPos
+                    el.UnscaledPos = localPos 
                     origPos = localPos 
                     
                     if not el.SameRow then
@@ -1248,7 +1252,7 @@ Connection = RunService.Render:Connect(function()
                 if not isVis then
                     if el.Bg then el.Bg.Visible = false end
                     if el.Txt then el.Txt.Visible = false end
-                    if el.Type == "Toggle" then el.TogBg.Visible = false; el.TogKnob.Visible = false; if el.SetBtn then el.SetBtn.Visible = false; el.SetTxt.Visible = false end
+                    if el.Type == "Toggle" then el.TogBg.Visible = false; el.TogKnob.Visible = false;
                     elseif el.Type == "Slider" then el.FillBg.Visible = false; el.Fill.Visible = false; el.ValBg.Visible = false; el.ValTxt.Visible = false
                     elseif el.Type == "Dropdown" then el.Icon.Visible = false
                     elseif el.Type == "Separator" then el.Bg.Visible = false end
@@ -1857,7 +1861,7 @@ Connection = RunService.Render:Connect(function()
                         State.PopClosePress = cAnim; State.PopCloseHov = ExpLerp(State.PopCloseHov or 0, closeHov and 1 or 0, dt, 18)
                         PopCloseBtn.Visible, PopCloseBtn.Position, PopCloseBtn.Size, PopCloseBtn.Transparency = isContentVisible, cPos, cSize, popTextAlpha
                         PopCloseBtn.Color = LerpColor(dynPanel, State.AccentCol, ApplyCurve(State.PopCloseHov, "EaseOutQuart"))
-                        PopCloseTxt.Visible, PopCloseTxt.Position, PopCloseTxt.Transparency, PopCloseTxt.Text = isContentVisible, cPos + Vector2.new(cSize.X/2, cSize.Y/2 - 6.5 * currentTextScale * morphAlpha), popTextAlpha, "Close"
+                        PopCloseTxt.Visible, PopCloseTxt.Position, PopCloseTxt.Transparency, PopCloseTxt.Text = isContentVisible, cPos + Vector2.new(cSize.X/2, cSize.Y/2 - 6.5 * currentTextScale), popTextAlpha, "Close"
                         PopCloseTxt.Color = LerpColor(dynTextMain, Color3.new(0, 0, 0), ApplyCurve(State.PopCloseHov, "EaseOutQuart"))
                         PopCloseTxt.Center = true
                         PopCloseTxt.Font = tonumber(State.UIFont) or 5
