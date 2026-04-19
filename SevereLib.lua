@@ -768,6 +768,35 @@ local function hidePopSlid(slid)
     slid.Bg.Visible = false; slid.FillBg.Visible = false; slid.Fill.Visible = false; slid.ValBg.Visible = false; slid.ValTxt.Visible = false; slid.Txt.Visible = false
 end
 
+local typingCache = false
+local lastTypingCheck = 0
+local function GetIsTyping()
+    local s1, r1 = pcall(function() return game:FindService("UserInputService"):GetFocusedTextBox() ~= nil end)
+    if s1 then return r1 end
+    
+    local s2, r2 = pcall(function() return game.UserInputService:GetFocusedTextBox() ~= nil end)
+    if s2 then return r2 end
+
+    local now = os.clock()
+    if now - lastTypingCheck < 0.2 then return typingCache end
+    lastTypingCheck = now
+    
+    typingCache = false
+    pcall(function()
+        if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
+            for _, v in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                if v.ClassName == "TextBox" and v:IsFocused() then typingCache = true; return end
+            end
+        end
+        if game:GetService("CoreGui") then
+            for _, v in ipairs(game:GetService("CoreGui"):GetDescendants()) do
+                if v.ClassName == "TextBox" and v:IsFocused() then typingCache = true; return end
+            end
+        end
+    end)
+    return typingCache
+end
+
 local lastUpdate = os.clock()
 Connection = RunService.Render:Connect(function()
     local ok, err = pcall(function()
@@ -783,7 +812,7 @@ Connection = RunService.Render:Connect(function()
         local lDown = (type(isleftpressed) == "function" and isleftpressed() and (type(isrbxactive) ~= "function" or isrbxactive())) or false 
         GlobalMousePos = mPos
 
-        local isTyping = (UIS:GetFocusedTextBox() ~= nil)
+        local isTyping = GetIsTyping()
 
         State.LightAlpha = ExpLerp(State.LightAlpha or (State.LightMode and 1 or 0), State.LightMode and 1 or 0, dt, 4.5)
         local lA = State.LightAlpha
@@ -1610,7 +1639,7 @@ Connection = RunService.Render:Connect(function()
 
                         PopCloseBtn.Visible, PopCloseBtn.Position, PopCloseBtn.Size, PopCloseBtn.Transparency = isContentVisible, cPos, cSize, popTextAlpha
                         PopCloseBtn.Color = LerpColor(dynPanel, State.AccentCol, ApplyCurve(State.PopCloseHov, "EaseOutQuart"))
-                        PopCloseTxt.Visible, PopCloseTxt.Position, PopCloseTxt.Transparency, PopCloseTxt.Text = isContentVisible, cPos + Vector2.new(cSize.X/2, cSize.Y/2 - 6.5 * currentTextScale * morphAlpha), popTextAlpha, "Close"
+                        PopCloseTxt.Visible, PopCloseTxt.Position, PopCloseTxt.Transparency, PopCloseTxt.Text = isContentVisible, cPos + Vector2.new(cSize.X/2, cSize.Y/2 - 6.5 * currentTextScale), popTextAlpha, "Close"
                         PopCloseTxt.Color = LerpColor(dynTextMain, Color3.new(0, 0, 0), ApplyCurve(State.PopCloseHov, "EaseOutQuart"))
                         PopCloseTxt.Center = true
                         PopCloseTxt.Font = tonumber(State.UIFont) or 5
