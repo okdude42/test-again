@@ -91,13 +91,6 @@ local LastTextScale = -1
 local GlobalMousePos = Vector2.new(0,0)
 local Separators = {}
 
--- Event-based Typing Detection (Bypasses Severe's Sandbox)
-local UserIsTyping = false
-pcall(function()
-    UIS.TextBoxFocused:Connect(function() UserIsTyping = true end)
-    UIS.TextBoxFocusReleased:Connect(function() UserIsTyping = false end)
-end)
-
 local FontScales = {}
 for i = 0, 31 do FontScales[i] = 1 end
 pcall(function()
@@ -559,7 +552,7 @@ function windowObj:createbutton(tabName, o)
         if not keyConfigAdded then table.insert(ConfigKeys, o.Name .. "_Key") end
     end
 
-    local el = { Bg = bg, Txt = t, Tab = (not o.Popup) and tabName or nil, Popup = o.Popup, Col = o.Col or 1, Type = "Button", BaseText = o.Name, Callback = o.Callback, IsInput = false, HoverAnim = 0, DisabledAnim = 0, Half = o.Half, SameRow = o.SameRow, CustomWidth = o.CustomWidth, CustomOffset = o.CustomOffset, HasKeybind = o.HasKeybind, KeyBg = keyBg, KeyTxt = keyTxt, KeyStateKey = o.Name .. "_Key" }
+    local el = { Bg = bg, Txt = t, Tab = (not o.Popup) and tabName or nil, Popup = o.Popup, Col = o.Col or 1, Type = "Button", BaseText = o.Name, Callback = o.Callback, IsInput = isInput, InputKey = inputKey, HoverAnim = 0, DisabledAnim = 0, Half = o.Half, SameRow = o.SameRow, CustomWidth = o.CustomWidth, CustomOffset = o.CustomOffset, HasKeybind = o.HasKeybind, KeyBg = keyBg, KeyTxt = keyTxt, KeyStateKey = o.Name .. "_Key" }
     table.insert(Elements, el)
     return el
 end
@@ -775,6 +768,70 @@ local function hidePopSlid(slid)
     slid.Bg.Visible = false; slid.FillBg.Visible = false; slid.Fill.Visible = false; slid.ValBg.Visible = false; slid.ValTxt.Visible = false; slid.Txt.Visible = false
 end
 
+-- =========================================================================
+-- TYPING DETECTOR BYPASS (Bypasses Severe Sandbox & Missing CoreGui)
+-- =========================================================================
+local typingCache = false
+local lastTypingCheck = 0
+local HeuristicTyping = false
+local wasSlashDown = false
+local wasReturnDown = false
+local wasEscDown = false
+
+local function GetIsTyping()
+    local slashDown = false
+    local returnDown = false
+    local escDown = false
+    local leftDown = false
+    
+    pcall(function() slashDown = UIS:IsKeyDown(Enum.KeyCode.Slash) end)
+    pcall(function() returnDown = UIS:IsKeyDown(Enum.KeyCode.Return) or UIS:IsKeyDown(Enum.KeyCode.KeypadEnter) end)
+    pcall(function() escDown = UIS:IsKeyDown(Enum.KeyCode.Escape) end)
+    pcall(function() if type(isleftpressed) == "function" then leftDown = isleftpressed() end end)
+    
+    -- Track if they manually open chat with Slash
+    if slashDown and not wasSlashDown then HeuristicTyping = true end
+    if (returnDown and not wasReturnDown) or (escDown and not wasEscDown) or leftDown then HeuristicTyping = false end
+    
+    wasSlashDown = slashDown
+    wasReturnDown = returnDown
+    wasEscDown = escDown
+
+    local now = os.clock()
+    if now - lastTypingCheck >= 0.2 then
+        lastTypingCheck = now
+        typingCache = false
+        
+        -- 1. Modern Roblox Chat Support
+        pcall(function()
+            local tcs = game:GetService("TextChatService")
+            if tcs and tcs:FindFirstChild("ChatInputBarConfiguration") then
+                if tcs.ChatInputBarConfiguration.IsFocused then
+                    typingCache = true
+                end
+            end
+        end)
+        
+        -- 2. Legacy Chat / Custom Menu Support
+        if not typingCache then
+            pcall(function()
+                local lp = game:GetService("Players").LocalPlayer
+                if lp and lp:FindFirstChild("PlayerGui") then
+                    for _, v in ipairs(lp.PlayerGui:GetDescendants()) do
+                        if v.ClassName == "TextBox" and v:IsFocused() then 
+                            typingCache = true
+                            break
+                        end
+                    end
+                end
+            end)
+        end
+    end
+    
+    return typingCache or HeuristicTyping
+end
+-- =========================================================================
+
 local lastUpdate = os.clock()
 Connection = RunService.Render:Connect(function()
     local ok, err = pcall(function()
@@ -789,6 +846,8 @@ Connection = RunService.Render:Connect(function()
         local mPos = UIS:GetMouseLocation()
         local lDown = (type(isleftpressed) == "function" and isleftpressed() and (type(isrbxactive) ~= "function" or isrbxactive())) or false 
         GlobalMousePos = mPos
+
+        local UserIsTyping = GetIsTyping()
 
         State.LightAlpha = ExpLerp(State.LightAlpha or (State.LightMode and 1 or 0), State.LightMode and 1 or 0, dt, 4.5)
         local lA = State.LightAlpha
